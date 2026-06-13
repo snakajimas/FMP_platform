@@ -1,4 +1,7 @@
 export interface Env {
+  // Static assets binding (the built SPA in ./dist).
+  ASSETS: Fetcher;
+  // Secrets / vars.
   FMP_API_KEY: string;
   PERPLEXITY_API_KEY: string;
   PERPLEXITY_MODEL?: string;

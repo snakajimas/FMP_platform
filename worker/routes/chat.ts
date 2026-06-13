@@ -1,6 +1,6 @@
-import { Env, json, fail } from "../_lib/env";
-import { FMP_TOOLS, toolCatalog, FmpError } from "../_lib/fmp";
-import { perplexityChat, extractJson, ChatMessage, PerplexityError } from "../_lib/perplexity";
+import { Env, json, fail } from "../lib/env";
+import { FMP_TOOLS, toolCatalog, FmpError } from "../lib/fmp";
+import { perplexityChat, extractJson, ChatMessage, PerplexityError } from "../lib/perplexity";
 
 interface PlannedCall {
   tool: string;
@@ -24,11 +24,7 @@ const DISCLAIMER =
 function compact(data: unknown): unknown {
   if (Array.isArray(data)) {
     if (data.length > 25) {
-      return {
-        _truncated: true,
-        total: data.length,
-        sample: data.slice(0, 25),
-      };
+      return { _truncated: true, total: data.length, sample: data.slice(0, 25) };
     }
     return data;
   }
@@ -41,7 +37,7 @@ function compact(data: unknown): unknown {
   return data;
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export async function handleChat(request: Request, env: Env): Promise<Response> {
   let payload: { messages?: ChatMessage[] };
   try {
     payload = await request.json();
@@ -148,12 +144,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return fail(e instanceof Error ? e.message : "Synthesis step failed.", status);
   }
 
-  return json({
-    answer,
-    plan: calls,
-    results, // full (untruncated) data for the UI to optionally render
-  });
-};
-
-export const onRequestGet: PagesFunction<Env> = () =>
-  fail("Use POST for /api/chat.", 405);
+  return json({ answer, plan: calls, results });
+}

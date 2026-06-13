@@ -1,12 +1,19 @@
 name = "fmp-platform"
+main = "worker/index.ts"
 compatibility_date = "2026-06-13"
-pages_build_output_dir = "dist"
 
-# Secrets (do NOT put real values here). Set them with:
-#   wrangler pages secret put FMP_API_KEY
-#   wrangler pages secret put PERPLEXITY_API_KEY
-# For local dev, copy .dev.vars.example -> .dev.vars and fill in.
-#
-# Optional non-secret vars:
+# Serve the built SPA (dist/) as static assets, with SPA-style fallback so
+# client-side routes (/chat, /screener, /chart) return index.html.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Non-secret vars.
 [vars]
 PERPLEXITY_MODEL = "sonar"
+
+# Secrets (do NOT put real values here). Set them with:
+#   wrangler secret put FMP_API_KEY
+#   wrangler secret put PERPLEXITY_API_KEY
+# For local dev, copy .dev.vars.example -> .dev.vars and fill in.

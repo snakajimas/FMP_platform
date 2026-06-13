@@ -8,8 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "pages:dev": "wrangler pages dev dist --compatibility-date=2026-06-13",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "worker:dev": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "lightweight-charts": "^4.2.0",

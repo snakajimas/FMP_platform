@@ -1,2 +1,0 @@
-# Pages Functions (/api/*) are matched first; everything else falls back to the SPA.
-/*    /index.html    200
