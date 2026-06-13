@@ -1,0 +1,12 @@
+name = "fmp-platform"
+compatibility_date = "2026-06-13"
+pages_build_output_dir = "dist"
+
+# Secrets (do NOT put real values here). Set them with:
+#   wrangler pages secret put FMP_API_KEY
+#   wrangler pages secret put PERPLEXITY_API_KEY
+# For local dev, copy .dev.vars.example -> .dev.vars and fill in.
+#
+# Optional non-secret vars:
+[vars]
+PERPLEXITY_MODEL = "sonar"
