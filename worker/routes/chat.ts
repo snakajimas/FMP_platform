@@ -81,9 +81,7 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
 
   let plan: { calls?: PlannedCall[] } | null = null;
   try {
-    const planRaw = await llmChat(llm, model, [planSystem, planUser], {
-      temperature: 0,
-    });
+    const planRaw = await llmChat(llm, model, [planSystem, planUser]);
     plan = extractJson<{ calls?: PlannedCall[] }>(planRaw);
   } catch (e) {
     const status = e instanceof LlmError ? e.status : 502;
@@ -138,9 +136,7 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
 
   let answer: string;
   try {
-    answer = await llmChat(llm, model, [synthSystem, synthUser], {
-      temperature: 0.3,
-    });
+    answer = await llmChat(llm, model, [synthSystem, synthUser]);
   } catch (e) {
     const status = e instanceof LlmError ? e.status : 502;
     return fail(e instanceof Error ? e.message : "Synthesis step failed.", status);

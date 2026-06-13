@@ -83,9 +83,7 @@ export async function handleScreenerNL(request: Request, env: Env): Promise<Resp
 
   let plan: PlanShape | null = null;
   try {
-    const raw = await llmChat(llm, model, [system, user], {
-      temperature: 0,
-    });
+    const raw = await llmChat(llm, model, [system, user]);
     plan = extractJson<PlanShape>(raw);
   } catch (e) {
     const status = e instanceof LlmError ? e.status : 502;

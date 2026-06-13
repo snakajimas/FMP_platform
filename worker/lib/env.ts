@@ -5,30 +5,27 @@ export interface Env {
   ASSETS: Fetcher;
   // FMP data API.
   FMP_API_KEY: string;
-  // AI provider (OpenAI-compatible /chat/completions).
-  //   AI_BASE_URL: default https://api.perplexity.ai (Perplexity / Sonar).
-  //                set to https://openrouter.ai/api/v1 (or OpenAI) to use GPT models.
-  //   AI_API_KEY : key for AI_BASE_URL. Falls back to PERPLEXITY_API_KEY.
-  AI_BASE_URL?: string;
-  AI_API_KEY?: string;
+  // Perplexity Agent API key (routes to openai/* etc. via provider/model ids).
   PERPLEXITY_API_KEY?: string;
+  // Optional override of the Agent API base URL (default below).
+  AI_BASE_URL?: string;
   // Default model when the client doesn't specify one (or sends an unknown id).
   PERPLEXITY_MODEL?: string;
 }
 
-const DEFAULT_BASE_URL = "https://api.perplexity.ai";
+const DEFAULT_BASE_URL = "https://api.perplexity.ai/v1";
 
-/** Resolve the AI provider endpoint + key from env. */
+/** Resolve the Perplexity Agent API endpoint + key from env. */
 export function getLlmConfig(env: Env): LlmConfig {
   return {
     baseUrl: env.AI_BASE_URL || DEFAULT_BASE_URL,
-    apiKey: env.AI_API_KEY || env.PERPLEXITY_API_KEY || "",
+    apiKey: env.PERPLEXITY_API_KEY || "",
   };
 }
 
-/** Whether an AI key is configured (either var). */
+/** Whether the Perplexity key is configured. */
 export function hasAiKey(env: Env): boolean {
-  return Boolean(env.AI_API_KEY || env.PERPLEXITY_API_KEY);
+  return Boolean(env.PERPLEXITY_API_KEY);
 }
 
 export function json(data: unknown, init: number | ResponseInit = 200): Response {
