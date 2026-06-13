@@ -1,5 +1,6 @@
 import { Env, fail } from "./lib/env";
 import { handleChat } from "./routes/chat";
+import { handleScreenerNL } from "./routes/screener";
 import {
   handleConfig,
   handleScreener,
@@ -40,6 +41,10 @@ function route(pathname: string, request: Request, url: URL, env: Env): Promise<
         : fail("Use POST for /api/chat.", 405);
     case "/api/screener":
       return handleScreener(url, env);
+    case "/api/screener-nl":
+      return request.method === "POST"
+        ? handleScreenerNL(request, env)
+        : fail("Use POST for /api/screener-nl.", 405);
     case "/api/history":
       return handleHistory(url, env);
     case "/api/quote":

@@ -1,82 +1,58 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, ScreenerRow } from "../lib/api";
+import { getModel } from "../lib/models";
 import { fmtCap, fmtNum } from "../lib/format";
 
-const SECTORS = [
-  "",
-  "Technology",
-  "Healthcare",
-  "Financial Services",
-  "Consumer Cyclical",
-  "Consumer Defensive",
-  "Industrials",
-  "Energy",
-  "Utilities",
-  "Real Estate",
-  "Basic Materials",
-  "Communication Services",
+const EXAMPLES = [
+  "時価総額1000億ドル以上のテクノロジー株を時価総額順に20件",
+  "配当利回りが高めで時価総額500億ドル超のヘルスケア銘柄",
+  "株価50ドル未満・出来高100万株以上の値動きが大きい銘柄",
+  "NASDAQ上場で時価総額1兆ドル超の大型株",
 ];
 
-interface Filters {
-  marketCapMoreThan: string;
-  marketCapLowerThan: string;
-  priceMoreThan: string;
-  priceLowerThan: string;
-  betaLowerThan: string;
-  volumeMoreThan: string;
-  dividendMoreThan: string;
-  sector: string;
-  country: string;
-  isEtf: boolean;
-  limit: string;
-}
-
-const EMPTY: Filters = {
-  marketCapMoreThan: "",
-  marketCapLowerThan: "",
-  priceMoreThan: "",
-  priceLowerThan: "",
-  betaLowerThan: "",
-  volumeMoreThan: "",
-  dividendMoreThan: "",
-  sector: "",
-  country: "US",
-  isEtf: false,
-  limit: "50",
+const FILTER_LABELS: Record<string, string> = {
+  marketCapMoreThan: "時価総額 ≥",
+  marketCapLowerThan: "時価総額 ≤",
+  priceMoreThan: "株価 ≥",
+  priceLowerThan: "株価 ≤",
+  betaMoreThan: "β ≥",
+  betaLowerThan: "β ≤",
+  volumeMoreThan: "出来高 ≥",
+  dividendMoreThan: "配当 ≥",
+  sector: "セクター",
+  industry: "業種",
+  country: "国",
+  exchange: "取引所",
+  isEtf: "ETF",
+  limit: "最大件数",
 };
 
-type SortKey = "marketCap" | "price" | "beta" | "volume" | "lastAnnualDividend";
+type SortKey = "marketCap" | "price" | "beta" | "volume";
 
 export default function ScreenerPage() {
-  const [f, setF] = useState<Filters>(EMPTY);
+  const [query, setQuery] = useState("");
   const [rows, setRows] = useState<ScreenerRow[] | null>(null);
+  const [filters, setFilters] = useState<Record<string, unknown> | null>(null);
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "marketCap", dir: -1 });
 
-  function set<K extends keyof Filters>(key: K, value: Filters[K]) {
-    setF((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function run() {
+  async function run(text: string) {
+    const q = text.trim();
+    if (!q || loading) return;
     setLoading(true);
     setError(null);
     try {
-      const params: Record<string, string> = {};
-      (Object.keys(f) as (keyof Filters)[]).forEach((k) => {
-        const v = f[k];
-        if (typeof v === "boolean") {
-          if (v) params[k] = "true";
-        } else if (v !== "") {
-          params[k] = v;
-        }
-      });
-      const res = await api.screener(params);
+      const res = await api.screenerNL(q, getModel());
       setRows(res.data || []);
+      setFilters(res.filters || {});
+      setNote(res.note || "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "スクリーニングに失敗しました。");
       setRows(null);
+      setFilters(null);
     } finally {
       setLoading(false);
     }
@@ -95,129 +71,87 @@ export default function ScreenerPage() {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Filter panel */}
-      <aside className="w-72 shrink-0 overflow-y-auto border-r border-border bg-panel p-4">
-        <h2 className="mb-3 text-sm font-semibold text-gray-300">フィルター条件</h2>
-
-        <Field label="セクター">
-          <select
-            value={f.sector}
-            onChange={(e) => set("sector", e.target.value)}
-            className="input"
-          >
-            {SECTORS.map((s) => (
-              <option key={s} value={s}>
-                {s || "(すべて)"}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Range
-          label="時価総額 ($)"
-          minVal={f.marketCapMoreThan}
-          maxVal={f.marketCapLowerThan}
-          onMin={(v) => set("marketCapMoreThan", v)}
-          onMax={(v) => set("marketCapLowerThan", v)}
-          placeholderMin="1000000000"
-          placeholderMax=""
-        />
-        <Range
-          label="株価 ($)"
-          minVal={f.priceMoreThan}
-          maxVal={f.priceLowerThan}
-          onMin={(v) => set("priceMoreThan", v)}
-          onMax={(v) => set("priceLowerThan", v)}
-        />
-
-        <Field label="出来高 下限">
-          <input
-            className="input"
-            value={f.volumeMoreThan}
-            onChange={(e) => set("volumeMoreThan", e.target.value)}
-            placeholder="1000000"
-            inputMode="numeric"
-          />
-        </Field>
-        <Field label="配当 下限 ($/株)">
-          <input
-            className="input"
-            value={f.dividendMoreThan}
-            onChange={(e) => set("dividendMoreThan", e.target.value)}
-            placeholder="0"
-            inputMode="numeric"
-          />
-        </Field>
-        <Field label="ベータ 上限">
-          <input
-            className="input"
-            value={f.betaLowerThan}
-            onChange={(e) => set("betaLowerThan", e.target.value)}
-            placeholder="1.5"
-            inputMode="numeric"
-          />
-        </Field>
-        <Field label="国 (Free=US中心)">
-          <input
-            className="input"
-            value={f.country}
-            onChange={(e) => set("country", e.target.value)}
-            placeholder="US"
-          />
-        </Field>
-
-        <label className="my-2 flex items-center gap-2 text-sm text-gray-300">
-          <input
-            type="checkbox"
-            checked={f.isEtf}
-            onChange={(e) => set("isEtf", e.target.checked)}
-          />
-          ETFのみ
+    <div className="mx-auto flex h-full max-w-5xl flex-col px-4 py-5">
+      {/* NL input */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(query);
+        }}
+      >
+        <label className="mb-1 block text-sm font-medium text-gray-300">
+          自然言語でスクリーニング
         </label>
-
-        <Field label="最大件数">
-          <input
-            className="input"
-            value={f.limit}
-            onChange={(e) => set("limit", e.target.value)}
-            inputMode="numeric"
+        <div className="flex items-end gap-2">
+          <textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                run(query);
+              }
+            }}
+            rows={2}
+            placeholder="例: 時価総額1000億ドル以上のテック株を時価総額順に20件"
+            className="flex-1 resize-none rounded-lg border border-border bg-panel px-3 py-2.5 text-sm outline-none focus:border-accent"
           />
-        </Field>
-
-        <div className="mt-3 flex gap-2">
           <button
-            onClick={run}
-            disabled={loading}
-            className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-black disabled:opacity-40"
+            type="submit"
+            disabled={loading || !query.trim()}
+            className="h-[58px] rounded-lg bg-accent px-5 text-sm font-medium text-black disabled:opacity-40"
           >
-            {loading ? "検索中…" : "スクリーニング実行"}
-          </button>
-          <button
-            onClick={() => setF(EMPTY)}
-            className="rounded-lg border border-border px-3 py-2 text-sm text-gray-300"
-          >
-            リセット
+            {loading ? "検索中…" : "検索"}
           </button>
         </div>
-        <style>{`.input{width:100%;background:#0b0f1a;border:1px solid #1f2937;border-radius:8px;padding:6px 8px;font-size:13px;color:#e5e7eb;outline:none}.input:focus{border-color:#38bdf8}`}</style>
-      </aside>
+      </form>
 
-      {/* Results */}
-      <section className="min-w-0 flex-1 overflow-auto p-4">
-        {error && (
-          <div className="mb-3 rounded-lg border border-down/40 bg-down/10 p-3 text-sm text-red-300">
-            {error}
+      {!rows && !error && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {EXAMPLES.map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setQuery(s);
+                run(s);
+              }}
+              className="rounded-full border border-border bg-panel px-3 py-1.5 text-xs text-gray-300 hover:border-accent/50 hover:text-white"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Interpreted filters */}
+      {filters && (
+        <div className="mt-3 rounded-lg border border-border bg-panel/60 p-3">
+          {note && <div className="mb-2 text-sm text-gray-300">{note}</div>}
+          <div className="flex flex-wrap gap-1.5">
+            {Object.entries(filters).map(([k, v]) => (
+              <span key={k} className="rounded bg-black/30 px-2 py-0.5 text-[11px] text-accent">
+                {FILTER_LABELS[k] || k}: {formatFilterValue(k, v)}
+              </span>
+            ))}
           </div>
-        )}
-        {!sorted && !error && (
-          <div className="mt-20 text-center text-gray-500">
-            左の条件を設定して「スクリーニング実行」を押してください。
-          </div>
-        )}
-        {sorted && (
-          <>
-            <div className="mb-2 text-sm text-gray-400">{sorted.length} 件ヒット</div>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-3 rounded-lg border border-down/40 bg-down/10 p-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      {/* Dataframe */}
+      {sorted && (
+        <div className="mt-3 min-h-0 flex-1 overflow-auto">
+          <div className="mb-2 text-sm text-gray-400">{sorted.length} 件ヒット</div>
+          {sorted.length === 0 ? (
+            <div className="mt-10 text-center text-gray-500">
+              条件に一致する銘柄が見つかりませんでした。条件を緩めてお試しください。
+            </div>
+          ) : (
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 bg-bg text-left text-xs text-gray-400">
                 <tr>
@@ -243,7 +177,7 @@ export default function ScreenerPage() {
                 {sorted.map((r) => (
                   <tr key={r.symbol} className="border-b border-border/60 hover:bg-panel/60">
                     <td className="py-2 font-medium text-accent">{r.symbol}</td>
-                    <td className="max-w-[220px] truncate py-2 text-gray-300" title={r.companyName}>
+                    <td className="max-w-[240px] truncate py-2 text-gray-300" title={r.companyName}>
                       {r.companyName || "—"}
                     </td>
                     <td className="py-2 text-gray-400">{r.sector || "—"}</td>
@@ -263,60 +197,20 @@ export default function ScreenerPage() {
                 ))}
               </tbody>
             </table>
-          </>
-        )}
-      </section>
+          )}
+          <p className="mt-3 text-[11px] text-gray-500">
+            本結果は過去・公開データに基づく情報提供であり、将来の利益を保証しません。投資判断はご自身でお願いします。
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="mb-2 block">
-      <span className="mb-1 block text-xs text-gray-400">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function Range({
-  label,
-  minVal,
-  maxVal,
-  onMin,
-  onMax,
-  placeholderMin = "",
-  placeholderMax = "",
-}: {
-  label: string;
-  minVal: string;
-  maxVal: string;
-  onMin: (v: string) => void;
-  onMax: (v: string) => void;
-  placeholderMin?: string;
-  placeholderMax?: string;
-}) {
-  return (
-    <Field label={label}>
-      <div className="flex items-center gap-1">
-        <input
-          className="input"
-          value={minVal}
-          onChange={(e) => onMin(e.target.value)}
-          placeholder={placeholderMin || "下限"}
-          inputMode="numeric"
-        />
-        <span className="text-gray-500">〜</span>
-        <input
-          className="input"
-          value={maxVal}
-          onChange={(e) => onMax(e.target.value)}
-          placeholder={placeholderMax || "上限"}
-          inputMode="numeric"
-        />
-      </div>
-    </Field>
-  );
+function formatFilterValue(key: string, v: unknown): string {
+  if (key.startsWith("marketCap") && typeof v === "number") return fmtCap(v);
+  if (typeof v === "number") return fmtNum(v, 0);
+  return String(v);
 }
 
 function Th({ children }: { children: React.ReactNode }) {

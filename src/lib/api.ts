@@ -39,14 +39,26 @@ export interface ChatResponse {
   results: ToolResult[];
 }
 
+export interface ScreenerNLResponse {
+  filters: Record<string, unknown>;
+  note: string;
+  data: ScreenerRow[];
+}
+
 export const api = {
   config: () =>
     call<{ fmp: boolean; perplexity: boolean; model: string }>("/api/config"),
 
-  chat: (messages: ChatMessage[]) =>
+  chat: (messages: ChatMessage[], model?: string) =>
     call<ChatResponse>("/api/chat", {
       method: "POST",
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, model }),
+    }),
+
+  screenerNL: (query: string, model?: string) =>
+    call<ScreenerNLResponse>("/api/screener-nl", {
+      method: "POST",
+      body: JSON.stringify({ query, model }),
     }),
 
   screener: (params: Record<string, string>) => {

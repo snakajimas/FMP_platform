@@ -1,6 +1,7 @@
 import { Env, json, fail } from "../lib/env";
 import { FMP_TOOLS, toolCatalog, FmpError } from "../lib/fmp";
 import { perplexityChat, extractJson, ChatMessage, PerplexityError } from "../lib/perplexity";
+import { resolveModel } from "../lib/models";
 
 interface PlannedCall {
   tool: string;
@@ -38,7 +39,7 @@ function compact(data: unknown): unknown {
 }
 
 export async function handleChat(request: Request, env: Env): Promise<Response> {
-  let payload: { messages?: ChatMessage[] };
+  let payload: { messages?: ChatMessage[]; model?: string };
   try {
     payload = await request.json();
   } catch {
@@ -51,7 +52,7 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
   const lastUser = [...history].reverse().find((m) => m.role === "user");
   if (!lastUser) return fail("No user message provided.");
 
-  const model = env.PERPLEXITY_MODEL || "sonar";
+  const model = resolveModel(payload.model, env);
 
   // --- Step 1: plan which FMP tools to call -------------------------------
   const planSystem: ChatMessage = {

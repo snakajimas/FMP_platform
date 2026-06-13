@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { api, ChatMessage, ToolResult, PlannedCall } from "../lib/api";
+import { getModel } from "../lib/models";
 
 interface UiMessage extends ChatMessage {
   plan?: PlannedCall[];
@@ -34,7 +35,7 @@ export default function ChatPage() {
     setLoading(true);
     try {
       const history: ChatMessage[] = next.map((m) => ({ role: m.role, content: m.content }));
-      const res = await api.chat(history);
+      const res = await api.chat(history, getModel());
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: res.answer, plan: res.plan, results: res.results },

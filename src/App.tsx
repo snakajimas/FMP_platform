@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { api } from "./lib/api";
+import { MODELS, getModel, setModel } from "./lib/models";
 
 const tabs = [
   { to: "/chat", label: "AIチャット", icon: "💬" },
@@ -10,10 +11,16 @@ const tabs = [
 
 export default function App() {
   const [config, setConfig] = useState<{ fmp: boolean; perplexity: boolean } | null>(null);
+  const [model, setModelState] = useState(getModel());
 
   useEffect(() => {
     api.config().then(setConfig).catch(() => setConfig({ fmp: false, perplexity: false }));
   }, []);
+
+  function changeModel(id: string) {
+    setModel(id);
+    setModelState(id);
+  }
 
   const missing: string[] = [];
   if (config && !config.fmp) missing.push("FMP_API_KEY");
@@ -44,8 +51,20 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <div className="ml-auto text-xs text-gray-500">
-          Powered by Financial Modeling Prep + Perplexity
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-gray-500">AIモデル</span>
+          <select
+            value={model}
+            onChange={(e) => changeModel(e.target.value)}
+            className="rounded-md border border-border bg-bg px-2 py-1 text-xs text-gray-200 outline-none focus:border-accent"
+            title="チャット・スクリーナーで使うAIモデル"
+          >
+            {MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
         </div>
       </header>
 
