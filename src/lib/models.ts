@@ -5,10 +5,15 @@ export interface ModelOption {
 }
 
 export const MODELS: ModelOption[] = [
-  { id: "openai/gpt-5.5", label: "GPT-5.5" },
-  { id: "openai/gpt-5.4-nano", label: "GPT-5.4 nano（高速・低コスト）" },
+  // Work immediately with the current Perplexity key.
+  { id: "sonar", label: "Perplexity Sonar（現キーで即動作）" },
+  { id: "sonar-pro", label: "Perplexity Sonar Pro（現キーで即動作）" },
+  // Require AI_BASE_URL/AI_API_KEY pointed at OpenRouter or OpenAI.
+  { id: "openai/gpt-5.5", label: "GPT-5.5（要 OpenRouter/OpenAI キー）" },
+  { id: "openai/gpt-5.4-nano", label: "GPT-5.4 nano（要 OpenRouter/OpenAI キー）" },
 ];
 
+// Default to a model that works with the current Perplexity key out of the box.
 export const DEFAULT_MODEL = MODELS[0].id;
 
 const STORAGE_KEY = "fmp.model";

@@ -11,9 +11,15 @@ not_found_handling = "single-page-application"
 
 # Non-secret vars.
 [vars]
+# Fallback model when the client doesn't specify one.
 PERPLEXITY_MODEL = "sonar"
+# AI provider base URL (OpenAI-compatible). Default = Perplexity.
+# To use GPT models, set this to "https://openrouter.ai/api/v1" (or OpenAI)
+# AND set the matching AI_API_KEY secret.
+# AI_BASE_URL = "https://openrouter.ai/api/v1"
 
 # Secrets (do NOT put real values here). Set them with:
 #   wrangler secret put FMP_API_KEY
-#   wrangler secret put PERPLEXITY_API_KEY
+#   wrangler secret put PERPLEXITY_API_KEY      # Perplexity (sonar) key
+#   wrangler secret put AI_API_KEY              # only if using OpenRouter/OpenAI
 # For local dev, copy .dev.vars.example -> .dev.vars and fill in.

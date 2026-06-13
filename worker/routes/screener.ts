@@ -1,6 +1,6 @@
-import { Env, json, fail } from "../lib/env";
+import { Env, json, fail, getLlmConfig } from "../lib/env";
 import { runScreener, FmpError } from "../lib/fmp";
-import { perplexityChat, extractJson, ChatMessage, PerplexityError } from "../lib/perplexity";
+import { llmChat, extractJson, ChatMessage, LlmError } from "../lib/llm";
 import { resolveModel } from "../lib/models";
 
 const SECTORS = [
@@ -53,6 +53,7 @@ export async function handleScreenerNL(request: Request, env: Env): Promise<Resp
   if (!query) return fail("query is required.");
 
   const model = resolveModel(payload.model, env);
+  const llm = getLlmConfig(env);
 
   const system: ChatMessage = {
     role: "system",
@@ -82,12 +83,12 @@ export async function handleScreenerNL(request: Request, env: Env): Promise<Resp
 
   let plan: PlanShape | null = null;
   try {
-    const raw = await perplexityChat(env.PERPLEXITY_API_KEY, model, [system, user], {
+    const raw = await llmChat(llm, model, [system, user], {
       temperature: 0,
     });
     plan = extractJson<PlanShape>(raw);
   } catch (e) {
-    const status = e instanceof PerplexityError ? e.status : 502;
+    const status = e instanceof LlmError ? e.status : 502;
     return fail(e instanceof Error ? e.message : "AI interpretation failed.", status);
   }
 

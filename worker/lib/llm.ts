@@ -1,14 +1,19 @@
-// Minimal Perplexity chat client (OpenAI-compatible /chat/completions).
-// Docs: https://docs.perplexity.ai
-
-const PPLX_URL = "https://api.perplexity.ai/chat/completions";
+// Generic OpenAI-compatible chat client.
+// Works with any /chat/completions endpoint (Perplexity, OpenRouter, OpenAI, ...).
+// The base URL and key are configured via env (see getLlmConfig in env.ts), so
+// switching providers is a config change, not a code change.
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-export class PerplexityError extends Error {
+export interface LlmConfig {
+  baseUrl: string;
+  apiKey: string;
+}
+
+export class LlmError extends Error {
   status: number;
   constructor(message: string, status: number) {
     super(message);
@@ -16,18 +21,21 @@ export class PerplexityError extends Error {
   }
 }
 
-export async function perplexityChat(
-  apiKey: string,
+export async function llmChat(
+  config: LlmConfig,
   model: string,
   messages: ChatMessage[],
   opts: { temperature?: number } = {}
 ): Promise<string> {
-  if (!apiKey) throw new PerplexityError("PERPLEXITY_API_KEY is not configured on the server.", 500);
+  if (!config.apiKey) {
+    throw new LlmError("AI API key is not configured on the server.", 500);
+  }
 
-  const res = await fetch(PPLX_URL, {
+  const url = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
+  const res = await fetch(url, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${apiKey}`,
+      authorization: `Bearer ${config.apiKey}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
@@ -42,17 +50,17 @@ export async function perplexityChat(
   try {
     body = text ? JSON.parse(text) : null;
   } catch {
-    throw new PerplexityError(`Perplexity returned non-JSON response (${res.status}).`, 502);
+    throw new LlmError(`AI provider returned non-JSON response (${res.status}).`, 502);
   }
 
   if (!res.ok) {
-    const msg = body?.error?.message || body?.error || `Perplexity request failed (${res.status}).`;
-    throw new PerplexityError(String(msg), res.status === 401 ? 502 : res.status);
+    const msg = body?.error?.message || body?.error || `AI request failed (${res.status}).`;
+    throw new LlmError(String(msg), res.status === 401 ? 502 : res.status);
   }
 
   const content = body?.choices?.[0]?.message?.content;
   if (typeof content !== "string") {
-    throw new PerplexityError("Perplexity response was empty.", 502);
+    throw new LlmError("AI response was empty.", 502);
   }
   return content;
 }

@@ -1,6 +1,6 @@
-import { Env, json, fail } from "../lib/env";
+import { Env, json, fail, getLlmConfig } from "../lib/env";
 import { FMP_TOOLS, toolCatalog, FmpError } from "../lib/fmp";
-import { perplexityChat, extractJson, ChatMessage, PerplexityError } from "../lib/perplexity";
+import { llmChat, extractJson, ChatMessage, LlmError } from "../lib/llm";
 import { resolveModel } from "../lib/models";
 
 interface PlannedCall {
@@ -53,6 +53,7 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
   if (!lastUser) return fail("No user message provided.");
 
   const model = resolveModel(payload.model, env);
+  const llm = getLlmConfig(env);
 
   // --- Step 1: plan which FMP tools to call -------------------------------
   const planSystem: ChatMessage = {
@@ -80,12 +81,12 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
 
   let plan: { calls?: PlannedCall[] } | null = null;
   try {
-    const planRaw = await perplexityChat(env.PERPLEXITY_API_KEY, model, [planSystem, planUser], {
+    const planRaw = await llmChat(llm, model, [planSystem, planUser], {
       temperature: 0,
     });
     plan = extractJson<{ calls?: PlannedCall[] }>(planRaw);
   } catch (e) {
-    const status = e instanceof PerplexityError ? e.status : 502;
+    const status = e instanceof LlmError ? e.status : 502;
     return fail(e instanceof Error ? e.message : "Planning step failed.", status);
   }
 
@@ -137,11 +138,11 @@ export async function handleChat(request: Request, env: Env): Promise<Response> 
 
   let answer: string;
   try {
-    answer = await perplexityChat(env.PERPLEXITY_API_KEY, model, [synthSystem, synthUser], {
+    answer = await llmChat(llm, model, [synthSystem, synthUser], {
       temperature: 0.3,
     });
   } catch (e) {
-    const status = e instanceof PerplexityError ? e.status : 502;
+    const status = e instanceof LlmError ? e.status : 502;
     return fail(e instanceof Error ? e.message : "Synthesis step failed.", status);
   }
 

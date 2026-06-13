@@ -1,4 +1,4 @@
-import { Env, json, fail } from "../lib/env";
+import { Env, json, fail, hasAiKey } from "../lib/env";
 import { fmpGet, runScreener, FmpError } from "../lib/fmp";
 
 function errResponse(e: unknown, fallback: string): Response {
@@ -12,7 +12,8 @@ function errResponse(e: unknown, fallback: string): Response {
 export function handleConfig(env: Env): Response {
   return json({
     fmp: Boolean(env.FMP_API_KEY),
-    perplexity: Boolean(env.PERPLEXITY_API_KEY),
+    perplexity: hasAiKey(env), // AI key present (AI_API_KEY or PERPLEXITY_API_KEY)
+    baseUrl: env.AI_BASE_URL || "https://api.perplexity.ai",
     model: env.PERPLEXITY_MODEL || "sonar",
   });
 }
