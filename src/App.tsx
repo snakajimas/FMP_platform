@@ -1,17 +1,28 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import {
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  MessageSquare,
+  Search,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
 import { api } from "./lib/api";
 import { MODELS, getModel, setModel } from "./lib/models";
 
-const tabs = [
-  { to: "/chat", label: "AIチャット", icon: "💬" },
-  { to: "/screener", label: "スクリーナー", icon: "🔎" },
-  { to: "/chart", label: "チャート", icon: "📈" },
-];
-
 export default function App() {
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("fmp-sidebar-collapsed") === "true"
+  );
   const [config, setConfig] = useState<{ fmp: boolean; perplexity: boolean } | null>(null);
   const [model, setModelState] = useState(getModel());
+
+  useEffect(() => {
+    localStorage.setItem("fmp-sidebar-collapsed", String(collapsed));
+  }, [collapsed]);
 
   useEffect(() => {
     api.config().then(setConfig).catch(() => setConfig({ fmp: false, perplexity: false }));
@@ -27,58 +38,104 @@ export default function App() {
   if (config && !config.perplexity) missing.push("PERPLEXITY_API_KEY");
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-6 border-b border-border bg-panel px-5 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🐂</span>
-          <span className="text-lg font-semibold tracking-tight">
-            FMP <span className="text-accent">Analytics</span>
+    <div className={`app-shell${collapsed ? " sidebar-collapsed" : ""}`}>
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark">
+            <TrendingUp size={17} />
           </span>
-        </div>
-        <nav className="flex gap-1">
-          {tabs.map((t) => (
-            <NavLink
-              key={t.to}
-              to={t.to}
-              className={({ isActive }) =>
-                `rounded-md px-3 py-1.5 text-sm transition ${
-                  isActive ? "bg-accent/15 text-accent" : "text-gray-400 hover:text-gray-200"
-                }`
-              }
-            >
-              <span className="mr-1">{t.icon}</span>
-              {t.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-gray-500">AIモデル</span>
-          <select
-            value={model}
-            onChange={(e) => changeModel(e.target.value)}
-            className="rounded-md border border-border bg-bg px-2 py-1 text-xs text-gray-200 outline-none focus:border-accent"
-            title="チャット・スクリーナーで使うAIモデル"
+          <span className="brand-copy">
+            <span className="brand-name">FMP Analytics</span>
+            <span className="brand-sub">Financial Insight</span>
+          </span>
+          <button
+            type="button"
+            className="sidebar-toggle"
+            aria-label={collapsed ? "サイドメニューを開く" : "サイドメニューを閉じる"}
+            title={collapsed ? "サイドメニューを開く" : "サイドメニューを閉じる"}
+            onClick={() => setCollapsed((v) => !v)}
           >
-            {MODELS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
         </div>
-      </header>
 
-      {missing.length > 0 && (
-        <div className="border-b border-amber-700/40 bg-amber-900/20 px-5 py-2 text-sm text-amber-300">
-          ⚠️ サーバーに未設定のキー: {missing.join(", ")} —{" "}
-          <code className="rounded bg-black/30 px-1">wrangler pages secret put …</code>{" "}
-          または .dev.vars で設定してください。
+        <div className="side-section">
+          <div className="side-label">分析する</div>
+          <NavLink to="/chat" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            <MessageSquare size={15} />
+            <span className="nav-label">AIチャット</span>
+          </NavLink>
+          <NavLink
+            to="/screener"
+            className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+          >
+            <Search size={15} />
+            <span className="nav-label">スクリーナー</span>
+          </NavLink>
+          <NavLink to="/chart" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            <BarChart3 size={15} />
+            <span className="nav-label">チャート</span>
+          </NavLink>
         </div>
-      )}
 
-      <main className="min-h-0 flex-1">
+        <div className="side-foot">
+          <div className="data-health">
+            <div className="health-line">
+              <span
+                className="health-dot"
+                style={config && missing.length === 0 ? undefined : { background: "var(--yellow)" }}
+              />
+              {config ? (missing.length === 0 ? "API 接続OK" : "APIキー未設定") : "接続確認中"}
+            </div>
+            <div className="health-sub">
+              Financial Modeling Prep のデータを Perplexity Agent が解説します。
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="app-main">
+        <header className="topbar">
+          <div className="mobile-brand">
+            <span className="brand-mark">
+              <TrendingUp size={15} />
+            </span>
+            FMP Analytics
+          </div>
+          <div className="top-title">
+            自然言語で米国株のファンダ・テクニカルを、過去・公開データから客観的に分析
+          </div>
+          <div className="top-actions">
+            <select
+              className="model-select"
+              value={model}
+              onChange={(e) => changeModel(e.target.value)}
+              title="AIモデル（チャット・スクリーナー共通）"
+            >
+              {MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <span className="status-pill">
+              <Database size={12} /> FMP
+            </span>
+            <span className="status-pill good">
+              <Sparkles size={12} /> Agent AI
+            </span>
+          </div>
+        </header>
+
+        {missing.length > 0 && (
+          <div className="notice" style={{ margin: "10px 16px 0" }}>
+            ⚠️ サーバーに未設定のキー: {missing.join(", ")} — Cloudflare の Variables and Secrets
+            で設定してください。
+          </div>
+        )}
+
         <Outlet />
-      </main>
+      </div>
     </div>
   );
 }

@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Database,
+  Loader2,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  WandSparkles,
+} from "lucide-react";
 import { api, ScreenerRow } from "../lib/api";
 import { getModel } from "../lib/models";
 import { fmtCap, fmtNum } from "../lib/format";
 
-const EXAMPLES = [
+const SAMPLES = [
   "時価総額1000億ドル以上のテクノロジー株を時価総額順に20件",
   "配当利回りが高めで時価総額500億ドル超のヘルスケア銘柄",
   "株価50ドル未満・出来高100万株以上の値動きが大きい銘柄",
@@ -30,19 +40,26 @@ const FILTER_LABELS: Record<string, string> = {
 
 type SortKey = "marketCap" | "price" | "beta" | "volume";
 
+function formatFilterValue(key: string, v: unknown): string {
+  if (key.startsWith("marketCap") && typeof v === "number") return fmtCap(v);
+  if (typeof v === "number") return fmtNum(v, 0);
+  return String(v);
+}
+
 export default function ScreenerPage() {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(SAMPLES[0]);
   const [rows, setRows] = useState<ScreenerRow[] | null>(null);
   const [filters, setFilters] = useState<Record<string, unknown> | null>(null);
   const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "marketCap", dir: -1 });
 
-  async function run(text: string) {
+  async function run(text = query) {
     const q = text.trim();
-    if (!q || loading) return;
-    setLoading(true);
+    if (!q || running) return;
+    setQuery(text);
+    setRunning(true);
     setError(null);
     try {
       const res = await api.screenerNL(q, getModel());
@@ -54,7 +71,7 @@ export default function ScreenerPage() {
       setRows(null);
       setFilters(null);
     } finally {
-      setLoading(false);
+      setRunning(false);
     }
   }
 
@@ -70,170 +87,217 @@ export default function ScreenerPage() {
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: -1 }));
   }
 
+  const sortMark = (key: SortKey) => (sort.key === key ? " ▾" : "");
+
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col px-4 py-5">
-      {/* NL input */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          run(query);
-        }}
-      >
-        <label className="mb-1 block text-sm font-medium text-gray-300">
-          自然言語でスクリーニング
-        </label>
-        <div className="flex items-end gap-2">
+    <main className="page chart-page">
+      <header className="page-header">
+        <div className="title-cluster">
+          <span className="title-icon">
+            <Search size={18} />
+          </span>
+          <div>
+            <h1>AIスクリーナー</h1>
+            <p className="subtitle">
+              自然言語の条件をAIがFMPの絞り込みパラメータに変換し、米国株のデータフレームを出力します。
+            </p>
+          </div>
+        </div>
+        <div className="header-badges">
+          <span className="badge purple">
+            <Sparkles size={11} /> Perplexity Agent
+          </span>
+          <span className="badge blue">
+            <Database size={11} /> FMP company-screener
+          </span>
+        </div>
+      </header>
+
+      <section className="panel hero-grid">
+        <div>
+          <div className="section-kicker">スクリーニング条件</div>
           <textarea
+            className="prompt-box"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                run(query);
-              }
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") void run();
             }}
-            rows={2}
-            placeholder="例: 時価総額1000億ドル以上のテック株を時価総額順に20件"
-            className="flex-1 resize-none rounded-lg border border-border bg-panel px-3 py-2.5 text-sm outline-none focus:border-accent"
+            placeholder="例: 時価総額1000億ドル以上のテック株を時価総額順に20件 / 配当利回りの高い大型ヘルスケア株"
           />
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="h-[58px] rounded-lg bg-accent px-5 text-sm font-medium text-black disabled:opacity-40"
-          >
-            {loading ? "検索中…" : "検索"}
-          </button>
-        </div>
-      </form>
-
-      {!rows && !error && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {EXAMPLES.map((s) => (
-            <button
-              key={s}
-              onClick={() => {
-                setQuery(s);
-                run(s);
-              }}
-              className="rounded-full border border-border bg-panel px-3 py-1.5 text-xs text-gray-300 hover:border-accent/50 hover:text-white"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Interpreted filters */}
-      {filters && (
-        <div className="mt-3 rounded-lg border border-border bg-panel/60 p-3">
-          {note && <div className="mb-2 text-sm text-gray-300">{note}</div>}
-          <div className="flex flex-wrap gap-1.5">
-            {Object.entries(filters).map(([k, v]) => (
-              <span key={k} className="rounded bg-black/30 px-2 py-0.5 text-[11px] text-accent">
-                {FILTER_LABELS[k] || k}: {formatFilterValue(k, v)}
-              </span>
+          <div className="chips">
+            {SAMPLES.map((s) => (
+              <button
+                key={s}
+                className="chip"
+                type="button"
+                disabled={running}
+                onClick={() => void run(s)}
+              >
+                {s}
+              </button>
             ))}
           </div>
         </div>
-      )}
+        <div className="run-cluster">
+          <button
+            className="primary-button"
+            type="button"
+            disabled={running || !query.trim()}
+            onClick={() => void run()}
+          >
+            {running ? <Loader2 size={15} className="spin" /> : <WandSparkles size={15} />}
+            {running ? "AIが抽出中" : "AIで銘柄を抽出"}
+          </button>
+        </div>
+      </section>
 
       {error && (
-        <div className="mt-3 rounded-lg border border-down/40 bg-down/10 p-3 text-sm text-red-300">
-          {error}
+        <div className="notice error">
+          <AlertTriangle size={13} /> {error}
         </div>
       )}
 
-      {/* Dataframe */}
-      {sorted && (
-        <div className="mt-3 min-h-0 flex-1 overflow-auto">
-          <div className="mb-2 text-sm text-gray-400">{sorted.length} 件ヒット</div>
-          {sorted.length === 0 ? (
-            <div className="mt-10 text-center text-gray-500">
-              条件に一致する銘柄が見つかりませんでした。条件を緩めてお試しください。
+      <section className="summary-grid">
+        <div className="summary-card">
+          <div className="summary-label">ヒット件数</div>
+          <div className="summary-value purple">
+            {sorted ? `${sorted.length.toLocaleString()}件` : "-"}
+          </div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">適用フィルタ数</div>
+          <div className="summary-value">{filters ? Object.keys(filters).length : "-"}</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">データソース</div>
+          <div className="summary-value">FMP</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">対象市場</div>
+          <div className="summary-value">米国株</div>
+        </div>
+      </section>
+
+      <div className="content-grid">
+        <section className="panel">
+          <div className="panel-head">
+            <div className="panel-title">
+              <Search size={13} /> 抽出結果
+            </div>
+            {sorted && (
+              <div className="result-toolbar">
+                <span className="result-count">
+                  <strong>{sorted.length.toLocaleString()}</strong> 件を表示
+                </span>
+              </div>
+            )}
+          </div>
+          {sorted && sorted.length > 0 ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>シンボル</th>
+                    <th>会社名</th>
+                    <th>セクター</th>
+                    <th className="sortable" onClick={() => toggleSort("price")}>
+                      株価{sortMark("price")}
+                    </th>
+                    <th className="sortable" onClick={() => toggleSort("marketCap")}>
+                      時価総額{sortMark("marketCap")}
+                    </th>
+                    <th className="sortable" onClick={() => toggleSort("beta")}>
+                      β{sortMark("beta")}
+                    </th>
+                    <th className="sortable" onClick={() => toggleSort("volume")}>
+                      出来高{sortMark("volume")}
+                    </th>
+                    <th> </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((r, i) => (
+                    <tr key={r.symbol}>
+                      <td className="rank">{i + 1}</td>
+                      <td>
+                        <Link className="symbol-link" to={`/chart?symbol=${r.symbol}`}>
+                          {r.symbol}
+                        </Link>
+                      </td>
+                      <td>
+                        <div className="company-name" title={r.companyName}>
+                          {r.companyName || "-"}
+                        </div>
+                      </td>
+                      <td>{r.sector ? <span className="badge">{r.sector}</span> : "-"}</td>
+                      <td>{r.price !== undefined ? `$${fmtNum(r.price)}` : "-"}</td>
+                      <td>{fmtCap(r.marketCap)}</td>
+                      <td>{fmtNum(r.beta)}</td>
+                      <td>{fmtNum(r.volume, 0)}</td>
+                      <td>
+                        <Link className="symbol-link" to={`/chart?symbol=${r.symbol}`}>
+                          チャート
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 bg-bg text-left text-xs text-gray-400">
-                <tr>
-                  <Th>シンボル</Th>
-                  <Th>会社名</Th>
-                  <Th>セクター</Th>
-                  <ThSort onClick={() => toggleSort("price")} active={sort.key === "price"}>
-                    株価
-                  </ThSort>
-                  <ThSort onClick={() => toggleSort("marketCap")} active={sort.key === "marketCap"}>
-                    時価総額
-                  </ThSort>
-                  <ThSort onClick={() => toggleSort("beta")} active={sort.key === "beta"}>
-                    β
-                  </ThSort>
-                  <ThSort onClick={() => toggleSort("volume")} active={sort.key === "volume"}>
-                    出来高
-                  </ThSort>
-                  <Th> </Th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((r) => (
-                  <tr key={r.symbol} className="border-b border-border/60 hover:bg-panel/60">
-                    <td className="py-2 font-medium text-accent">{r.symbol}</td>
-                    <td className="max-w-[240px] truncate py-2 text-gray-300" title={r.companyName}>
-                      {r.companyName || "—"}
-                    </td>
-                    <td className="py-2 text-gray-400">{r.sector || "—"}</td>
-                    <td className="py-2">{r.price !== undefined ? `$${fmtNum(r.price)}` : "—"}</td>
-                    <td className="py-2">{fmtCap(r.marketCap)}</td>
-                    <td className="py-2">{fmtNum(r.beta)}</td>
-                    <td className="py-2">{fmtNum(r.volume, 0)}</td>
-                    <td className="py-2">
-                      <Link
-                        to={`/chart?symbol=${r.symbol}`}
-                        className="text-xs text-gray-400 underline hover:text-accent"
-                      >
-                        チャート
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="empty-state">
+              <div>
+                <span className="empty-icon">
+                  <Search size={20} />
+                </span>
+                {sorted
+                  ? "条件に合う銘柄がありません。表現や閾値を少し緩めてください。"
+                  : "投資アイデアを自然言語で入力し、「AIで銘柄を抽出」を押してください。"}
+              </div>
+            </div>
           )}
-          <p className="mt-3 text-[11px] text-gray-500">
-            本結果は過去・公開データに基づく情報提供であり、将来の利益を保証しません。投資判断はご自身でお願いします。
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
+        </section>
 
-function formatFilterValue(key: string, v: unknown): string {
-  if (key.startsWith("marketCap") && typeof v === "number") return fmtCap(v);
-  if (typeof v === "number") return fmtNum(v, 0);
-  return String(v);
-}
+        <aside className="side-stack">
+          {note && (
+            <section className="panel">
+              <div className="panel-head">
+                <div className="panel-title">
+                  <Sparkles size={13} /> AIの解釈
+                </div>
+              </div>
+              <div className="panel-body thought-box">{note}</div>
+            </section>
+          )}
 
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="py-2 pr-3 font-medium">{children}</th>;
-}
+          {filters && Object.keys(filters).length > 0 && (
+            <section className="panel">
+              <div className="panel-head">
+                <div className="panel-title">
+                  <CheckCircle2 size={13} /> 適用フィルタ
+                </div>
+              </div>
+              <div className="panel-body explain-list">
+                {Object.entries(filters).map(([k, v]) => (
+                  <div className="explain-item" key={k}>
+                    <CheckCircle2 size={13} />
+                    <span>
+                      {FILTER_LABELS[k] || k}: <strong>{formatFilterValue(k, v)}</strong>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
-function ThSort({
-  children,
-  onClick,
-  active,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  active: boolean;
-}) {
-  return (
-    <th
-      onClick={onClick}
-      className={`cursor-pointer select-none py-2 pr-3 font-medium hover:text-gray-200 ${
-        active ? "text-accent" : ""
-      }`}
-    >
-      {children} {active ? "▾" : ""}
-    </th>
+          <div className="notice">
+            <ShieldAlert size={12} />
+            抽出結果は過去・公開データに基づく客観的な候補表示であり、将来の成果や売買判断を保証するものではありません。
+          </div>
+        </aside>
+      </div>
+    </main>
   );
 }

@@ -9,6 +9,7 @@ import {
   HistogramData,
   Time,
 } from "lightweight-charts";
+import { BarChart3, Loader2, Search } from "lucide-react";
 import { api, PriceBar, Quote, Profile } from "../lib/api";
 import { fmtCap, fmtNum, fmtPct } from "../lib/format";
 
@@ -46,32 +47,31 @@ export default function ChartPage() {
     if (!containerRef.current) return;
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: "#0b0f1a" },
-        textColor: "#9ca3af",
+        background: { type: ColorType.Solid, color: "#ffffff" },
+        textColor: "#5f6368",
+        fontFamily: 'Inter, "Noto Sans JP", sans-serif',
       },
       grid: {
-        vertLines: { color: "#161e2e" },
-        horzLines: { color: "#161e2e" },
+        vertLines: { color: "#f1f3f4" },
+        horzLines: { color: "#f1f3f4" },
       },
-      rightPriceScale: { borderColor: "#1f2937" },
-      timeScale: { borderColor: "#1f2937" },
+      rightPriceScale: { borderColor: "#e8eaed" },
+      timeScale: { borderColor: "#e8eaed" },
       crosshair: { mode: 1 },
       autoSize: true,
     });
     const candle = chart.addCandlestickSeries({
-      upColor: "#22c55e",
-      downColor: "#ef4444",
+      upColor: "#1e8e3e",
+      downColor: "#d93025",
       borderVisible: false,
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444",
+      wickUpColor: "#1e8e3e",
+      wickDownColor: "#d93025",
     });
     const vol = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
       priceScaleId: "vol",
     });
-    chart.priceScale("vol").applyOptions({
-      scaleMargins: { top: 0.82, bottom: 0 },
-    });
+    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
 
     chartRef.current = chart;
     candleRef.current = candle;
@@ -117,9 +117,7 @@ export default function ChartPage() {
   // Render bars into the chart.
   useEffect(() => {
     if (!bars || !candleRef.current || !volRef.current) return;
-    const asc = [...bars]
-      .filter((b) => b && b.date)
-      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    const asc = [...bars].filter((b) => b && b.date).sort((a, b) => (a.date < b.date ? -1 : 1));
 
     const candles: CandlestickData[] = asc.map((b) => ({
       time: b.date as Time,
@@ -131,7 +129,7 @@ export default function ChartPage() {
     const vols: HistogramData[] = asc.map((b) => ({
       time: b.date as Time,
       value: b.volume,
-      color: b.close >= b.open ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)",
+      color: b.close >= b.open ? "rgba(30,142,62,0.35)" : "rgba(217,48,37,0.35)",
     }));
     candleRef.current.setData(candles);
     volRef.current.setData(vols);
@@ -145,109 +143,146 @@ export default function ChartPage() {
   }
 
   const change = quote?.changePercentage;
+  const changeClass = change === undefined ? "" : change >= 0 ? "positive" : "negative";
 
   return (
-    <div className="flex h-full flex-col p-4">
-      {/* Header / controls */}
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(input);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="シンボル (例: AAPL)"
-            className="w-40 rounded-lg border border-border bg-panel px-3 py-2 text-sm uppercase outline-none focus:border-accent"
-          />
-          <button className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-black">
-            表示
-          </button>
-        </form>
-
-        <div className="flex gap-1">
-          {RANGES.map((r) => (
-            <button
-              key={r.label}
-              onClick={() => setRangeDays(r.days)}
-              className={`rounded-md px-2.5 py-1.5 text-xs ${
-                rangeDays === r.days
-                  ? "bg-accent/15 text-accent"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Quote summary */}
-      <div className="mb-3 flex flex-wrap items-end gap-x-6 gap-y-1 rounded-lg border border-border bg-panel px-4 py-3">
-        <div>
-          <div className="text-lg font-semibold">{symbolParam}</div>
-          <div className="text-xs text-gray-400">
-            {profile?.companyName || quote?.name || "—"}
-            {profile?.sector ? ` · ${profile.sector}` : ""}
+    <main className="page chart-page">
+      <header className="page-header">
+        <div className="title-cluster">
+          <span className="title-icon">
+            <BarChart3 size={18} />
+          </span>
+          <div>
+            <h1>チャート</h1>
+            <p className="subtitle">FMPの日足EODデータでローソク足・出来高・主要指標を表示します。</p>
           </div>
         </div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-semibold">
-            {quote?.price !== undefined ? `$${fmtNum(quote.price)}` : "—"}
-          </span>
-          {change !== undefined && (
-            <span className={change >= 0 ? "text-up" : "text-down"}>{fmtPct(change)}</span>
-          )}
+        <div className="header-badges">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit(input);
+            }}
+            style={{ display: "flex", gap: 6 }}
+          >
+            <input
+              className="control"
+              style={{ width: 150, height: 31 }}
+              value={input}
+              onChange={(e) => setInput(e.target.value.toUpperCase())}
+              placeholder="シンボル (例: AAPL)"
+            />
+            <button className="detail-link" type="submit" style={{ border: 0 }}>
+              <Search size={13} /> 表示
+            </button>
+          </form>
         </div>
-        <Stat label="時価総額" value={fmtCap(quote?.marketCap)} />
-        <Stat label="PER" value={fmtNum(quote?.pe)} />
-        <Stat
-          label="52週レンジ"
-          value={
-            quote?.yearLow !== undefined && quote?.yearHigh !== undefined
-              ? `$${fmtNum(quote.yearLow)} – $${fmtNum(quote.yearHigh)}`
-              : "—"
-          }
-        />
-        <Stat label="出来高" value={fmtNum(quote?.volume, 0)} />
+      </header>
+
+      {/* Symbol bar + OHLCV-style summary */}
+      <div className="chart-symbol-bar">
+        <div>
+          <div className="section-kicker">{symbolParam}</div>
+          <div className="chart-symbol-name">{profile?.companyName || quote?.name || symbolParam}</div>
+          <div className="price-meta">
+            {profile?.sector || "—"}
+            {profile?.industry ? ` · ${profile.industry}` : ""}
+          </div>
+        </div>
+        <div className="ohlcv-strip">
+          <div className="ohlcv-item">
+            <span>価格</span>
+            <strong className="primary">
+              {quote?.price !== undefined ? `$${fmtNum(quote.price)}` : "—"}
+            </strong>
+          </div>
+          <div className="ohlcv-item">
+            <span>前日比</span>
+            <strong className={changeClass}>{fmtPct(change)}</strong>
+          </div>
+          <div className="ohlcv-item">
+            <span>出来高</span>
+            <strong>{fmtNum(quote?.volume, 0)}</strong>
+          </div>
+        </div>
       </div>
 
+      {/* Range selector */}
+      <section className="chart-toolbar panel" style={{ marginTop: 0, borderRadius: "0 0 10px 10px", borderTop: 0 }}>
+        <div className="chart-tool-group">
+          <span className="tool-label">期間</span>
+          <div className="segmented">
+            {RANGES.map((r) => (
+              <button
+                key={r.label}
+                type="button"
+                className={rangeDays === r.days ? "active" : ""}
+                onClick={() => setRangeDays(r.days)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {error && (
-        <div className="mb-3 rounded-lg border border-down/40 bg-down/10 p-3 text-sm text-red-300">
+        <div className="notice error" style={{ marginTop: 12 }}>
           {error}
         </div>
       )}
 
       {/* Chart */}
-      <div className="relative min-h-0 flex-1 rounded-lg border border-border bg-bg">
-        <div ref={containerRef} className="h-full w-full" />
+      <section className="panel main-chart-panel" style={{ marginTop: 12 }}>
+        <div ref={containerRef} className="candlestick-canvas" />
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
-            読み込み中…
+          <div className="chart-loading">
+            <Loader2 size={14} className="spin" /> 読み込み中…
           </div>
         )}
         {!loading && bars && bars.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">
+          <div className="chart-loading">
             データがありません（FMP無料プランは米国株のEOD履歴が中心です）。
           </div>
         )}
+      </section>
+
+      {/* Summary metrics */}
+      <div className="chart-summary-grid">
+        <Metric label="時価総額" value={fmtCap(quote?.marketCap)} />
+        <Metric label="PER" value={fmtNum(quote?.pe)} />
+        <Metric
+          label="52週高値"
+          value={quote?.yearHigh !== undefined ? `$${fmtNum(quote.yearHigh)}` : "—"}
+        />
+        <Metric
+          label="52週安値"
+          value={quote?.yearLow !== undefined ? `$${fmtNum(quote.yearLow)}` : "—"}
+        />
+        <Metric
+          label="日中レンジ"
+          value={
+            quote?.dayLow !== undefined && quote?.dayHigh !== undefined
+              ? `$${fmtNum(quote.dayLow)}–${fmtNum(quote.dayHigh)}`
+              : "—"
+          }
+        />
       </div>
 
-      <p className="mt-2 text-[11px] text-gray-500">
+      <div className="disclaimer">
         本結果は過去・公開データに基づく情報提供であり、将来の利益を保証しません。投資判断はご自身でお願いします。
-      </p>
-    </div>
+      </div>
+    </main>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <div className="text-[11px] text-gray-500">{label}</div>
-      <div className="text-sm text-gray-200">{value}</div>
+    <div className="summary-card">
+      <div className="summary-label">{label}</div>
+      <div className="summary-value" style={{ fontSize: 15 }}>
+        {value}
+      </div>
     </div>
   );
 }

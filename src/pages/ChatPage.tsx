@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { AlertTriangle, Loader2, SendHorizontal, Sparkles } from "lucide-react";
 import { api, ChatMessage, ToolResult, PlannedCall } from "../lib/api";
 import { getModel } from "../lib/models";
 
@@ -48,21 +49,15 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col px-4">
-      <div className="flex-1 space-y-4 overflow-y-auto py-6">
+    <div className="chat-page">
+      <div className="chat-thread">
         {messages.length === 0 && (
-          <div className="mt-10 text-center">
-            <h1 className="text-2xl font-semibold">FMPデータにAIで質問</h1>
-            <p className="mt-2 text-sm text-gray-400">
-              自然言語で質問すると、AIが必要なFMPデータを取得し、根拠付きで要約します。
-            </p>
-            <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="chat-welcome">
+            <h2>FMPデータにAIで質問</h2>
+            <p>自然言語で質問すると、AIが必要なFMPデータを取得し、根拠付きで要約します。</p>
+            <div className="chat-suggestions">
               {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="rounded-lg border border-border bg-panel p-3 text-left text-sm text-gray-300 hover:border-accent/50 hover:text-white"
-                >
+                <button key={s} className="suggestion" type="button" onClick={() => send(s)}>
                   {s}
                 </button>
               ))}
@@ -75,28 +70,28 @@ export default function ChatPage() {
         ))}
 
         {loading && (
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
-            AIがFMPデータを取得・分析しています…
+          <div className="chat-status">
+            <Loader2 size={14} className="spin" /> AIがFMPデータを取得・分析しています…
           </div>
         )}
         {error && (
-          <div className="rounded-lg border border-down/40 bg-down/10 p-3 text-sm text-red-300">
-            {error}
+          <div className="notice error">
+            <AlertTriangle size={13} /> {error}
           </div>
         )}
         <div ref={endRef} />
       </div>
 
       <form
+        className="chat-composer"
         onSubmit={(e) => {
           e.preventDefault();
           send(input);
         }}
-        className="sticky bottom-0 border-t border-border bg-bg py-3"
       >
-        <div className="flex items-end gap-2">
+        <div className="composer-row">
           <textarea
+            className="composer-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -107,18 +102,13 @@ export default function ChatPage() {
             }}
             rows={1}
             placeholder="銘柄や指標について質問する（例: TSLAの財務指標を要約して）"
-            className="max-h-40 flex-1 resize-none rounded-lg border border-border bg-panel px-3 py-2.5 text-sm outline-none focus:border-accent"
           />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
-          >
-            送信
+          <button type="submit" className="composer-send" disabled={loading || !input.trim()}>
+            <SendHorizontal size={15} /> 送信
           </button>
         </div>
-        <p className="mt-1.5 text-[11px] text-gray-500">
-          本ツールは情報提供のみを目的とし、投資助言ではありません。
+        <p className="composer-note">
+          本ツールは過去・公開データに基づく情報提供であり、投資助言ではありません。
         </p>
       </form>
     </div>
@@ -132,46 +122,32 @@ function MessageBubble({ message }: { message: UiMessage }) {
   const errResults = (message.results || []).filter((r) => !r.ok);
 
   return (
-    <div className={isUser ? "flex justify-end" : "flex justify-start"}>
-      <div
-        className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm ${
-          isUser ? "bg-accent/15 text-gray-100" : "border border-border bg-panel text-gray-200"
-        }`}
-      >
-        <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+    <div className={`msg ${isUser ? "user" : "assistant"}`}>
+      <div className="msg-bubble">
+        {message.content}
 
         {!isUser && message.plan && message.plan.length > 0 && (
-          <div className="mt-3 border-t border-border pt-2">
-            <div className="flex flex-wrap gap-1.5">
-              {message.plan.map((c, i) => (
-                <span
-                  key={i}
-                  className="rounded bg-black/30 px-2 py-0.5 text-[11px] text-accent"
-                  title={JSON.stringify(c.args)}
-                >
-                  {c.tool}({Object.values(c.args || {}).join(", ")})
-                </span>
-              ))}
-            </div>
-            {errResults.length > 0 && (
-              <div className="mt-1 text-[11px] text-amber-400">
-                取得失敗: {errResults.map((r) => `${r.tool} (${r.error})`).join(" / ")}
-              </div>
-            )}
-            {okResults.length > 0 && (
-              <button
-                onClick={() => setShowData((s) => !s)}
-                className="mt-1 text-[11px] text-gray-400 underline hover:text-gray-200"
-              >
-                {showData ? "生データを隠す" : "取得した生データを表示"}
-              </button>
-            )}
-            {showData && (
-              <pre className="mt-2 max-h-72 overflow-auto rounded bg-black/40 p-2 text-[11px] text-gray-400">
-                {JSON.stringify(okResults, null, 2)}
-              </pre>
-            )}
+          <div className="msg-tools">
+            {message.plan.map((c, i) => (
+              <span key={i} className="tool-chip" title={JSON.stringify(c.args)}>
+                <Sparkles size={10} /> {c.tool}({Object.values(c.args || {}).join(", ")})
+              </span>
+            ))}
+            {errResults.map((r, i) => (
+              <span key={`e${i}`} className="tool-chip err">
+                {r.tool}: {r.error}
+              </span>
+            ))}
           </div>
+        )}
+
+        {!isUser && okResults.length > 0 && (
+          <>
+            <button className="raw-toggle" onClick={() => setShowData((s) => !s)}>
+              {showData ? "生データを隠す" : "取得した生データを表示"}
+            </button>
+            {showData && <pre className="raw-box">{JSON.stringify(okResults, null, 2)}</pre>}
+          </>
         )}
       </div>
     </div>
