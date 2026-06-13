@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   createChart,
@@ -9,16 +9,23 @@ import {
   HistogramData,
   Time,
 } from "lightweight-charts";
-import { BarChart3, Loader2, Search } from "lucide-react";
-import { api, PriceBar, Quote, Profile } from "../lib/api";
-import { fmtCap, fmtNum, fmtPct } from "../lib/format";
+import {
+  CalendarDays,
+  ChartCandlestick,
+  Database,
+  Loader2,
+  Radio,
+  Search,
+} from "lucide-react";
+import { api, PriceBar, Profile, SearchHit } from "../lib/api";
+import { fmtNum } from "../lib/format";
 
-const RANGES = [
-  { label: "1M", days: 30 },
-  { label: "3M", days: 90 },
-  { label: "6M", days: 180 },
-  { label: "1Y", days: 365 },
-  { label: "5Y", days: 365 * 5 },
+const PERIODS = [
+  { label: "1か月", days: 30 },
+  { label: "3か月", days: 90 },
+  { label: "6か月", days: 180 },
+  { label: "1年", days: 365 },
+  { label: "5年", days: 365 * 5 },
 ];
 
 function ymd(d: Date): string {
@@ -29,9 +36,9 @@ export default function ChartPage() {
   const [params, setParams] = useSearchParams();
   const symbolParam = (params.get("symbol") || "AAPL").toUpperCase();
 
-  const [input, setInput] = useState(symbolParam);
+  const [query, setQuery] = useState(symbolParam);
+  const [suggestions, setSuggestions] = useState<SearchHit[]>([]);
   const [rangeDays, setRangeDays] = useState(365);
-  const [quote, setQuote] = useState<Quote | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [bars, setBars] = useState<PriceBar[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,7 +49,7 @@ export default function ChartPage() {
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volRef = useRef<ISeriesApi<"Histogram"> | null>(null);
 
-  // Create the chart once.
+  // Create the chart once (kept as before: lightweight-charts).
   useEffect(() => {
     if (!containerRef.current) return;
     const chart = createChart(containerRef.current, {
@@ -82,7 +89,7 @@ export default function ChartPage() {
     };
   }, []);
 
-  // Fetch data when symbol or range changes.
+  // Fetch history + profile when symbol or range changes.
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -98,7 +105,6 @@ export default function ChartPage() {
         ]);
         if (cancelled) return;
         setBars(hist.data || []);
-        setQuote(q?.quote || null);
         setProfile(q?.profile || null);
       } catch (e) {
         if (cancelled) return;
@@ -114,11 +120,36 @@ export default function ChartPage() {
     };
   }, [symbolParam, rangeDays]);
 
+  // Sync the search box when the symbol changes externally.
+  useEffect(() => {
+    setQuery(symbolParam);
+    setSuggestions([]);
+  }, [symbolParam]);
+
+  // Debounced symbol suggestions (only when the box differs from the symbol).
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2 || q.toUpperCase() === symbolParam) {
+      setSuggestions([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      api
+        .search(q)
+        .then((r) => setSuggestions(r.data.slice(0, 8)))
+        .catch(() => setSuggestions([]));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query, symbolParam]);
+
+  const asc = useMemo(
+    () => (bars ? [...bars].filter((b) => b && b.date).sort((a, b) => (a.date < b.date ? -1 : 1)) : []),
+    [bars]
+  );
+
   // Render bars into the chart.
   useEffect(() => {
-    if (!bars || !candleRef.current || !volRef.current) return;
-    const asc = [...bars].filter((b) => b && b.date).sort((a, b) => (a.date < b.date ? -1 : 1));
-
+    if (!candleRef.current || !volRef.current) return;
     const candles: CandlestickData[] = asc.map((b) => ({
       time: b.date as Time,
       open: b.open,
@@ -134,155 +165,175 @@ export default function ChartPage() {
     candleRef.current.setData(candles);
     volRef.current.setData(vols);
     chartRef.current?.timeScale().fitContent();
-  }, [bars]);
+  }, [asc]);
 
-  function submit(sym: string) {
-    const s = sym.trim().toUpperCase();
+  const last = asc.length ? asc[asc.length - 1] : null;
+  const stats = useMemo(() => {
+    if (asc.length === 0) return null;
+    const first = asc[0];
+    const lastBar = asc[asc.length - 1];
+    const high = Math.max(...asc.map((b) => b.high));
+    const low = Math.min(...asc.map((b) => b.low));
+    const change = lastBar.close - first.close;
+    return {
+      high,
+      low,
+      changePct: first.close ? (change / first.close) * 100 : 0,
+      avgVolume: asc.reduce((s, b) => s + b.volume, 0) / asc.length,
+      days: asc.length,
+    };
+  }, [asc]);
+
+  function choose(symbol: string) {
+    const s = symbol.trim().toUpperCase();
     if (!s) return;
+    setSuggestions([]);
     setParams({ symbol: s });
   }
-
-  const change = quote?.changePercentage;
-  const changeClass = change === undefined ? "" : change >= 0 ? "positive" : "negative";
 
   return (
     <main className="page chart-page">
       <header className="page-header">
         <div className="title-cluster">
           <span className="title-icon">
-            <BarChart3 size={18} />
+            <ChartCandlestick size={18} />
           </span>
           <div>
             <h1>チャート</h1>
-            <p className="subtitle">FMPの日足EODデータでローソク足・出来高・主要指標を表示します。</p>
+            <p className="subtitle">FMPの調整済み日足のローソク足と出来高を確認します。</p>
           </div>
         </div>
         <div className="header-badges">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              submit(input);
-            }}
-            style={{ display: "flex", gap: 6 }}
-          >
-            <input
-              className="control"
-              style={{ width: 150, height: 31 }}
-              value={input}
-              onChange={(e) => setInput(e.target.value.toUpperCase())}
-              placeholder="シンボル (例: AAPL)"
-            />
-            <button className="detail-link" type="submit" style={{ border: 0 }}>
-              <Search size={13} /> 表示
-            </button>
-          </form>
+          <span className="badge blue">
+            <Database size={11} /> FMP OHLCV
+          </span>
+          <span className="badge purple">
+            <CalendarDays size={11} /> 日足
+          </span>
+          {last && (
+            <span className="badge good">
+              <Radio size={11} /> 最新 {last.date}
+            </span>
+          )}
         </div>
       </header>
 
-      {/* Symbol bar + OHLCV-style summary */}
-      <div className="chart-symbol-bar">
-        <div>
-          <div className="section-kicker">{symbolParam}</div>
-          <div className="chart-symbol-name">{profile?.companyName || quote?.name || symbolParam}</div>
-          <div className="price-meta">
-            {profile?.sector || "—"}
-            {profile?.industry ? ` · ${profile.industry}` : ""}
-          </div>
-        </div>
-        <div className="ohlcv-strip">
-          <div className="ohlcv-item">
-            <span>価格</span>
-            <strong className="primary">
-              {quote?.price !== undefined ? `$${fmtNum(quote.price)}` : "—"}
-            </strong>
-          </div>
-          <div className="ohlcv-item">
-            <span>前日比</span>
-            <strong className={changeClass}>{fmtPct(change)}</strong>
-          </div>
-          <div className="ohlcv-item">
-            <span>出来高</span>
-            <strong>{fmtNum(quote?.volume, 0)}</strong>
-          </div>
-        </div>
-      </div>
-
-      {/* Range selector */}
-      <section className="chart-toolbar panel" style={{ marginTop: 0, borderRadius: "0 0 10px 10px", borderTop: 0 }}>
+      <section className="panel chart-toolbar">
+        <label className="field grow">
+          <span>銘柄</span>
+          <input
+            className="control"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                choose(query);
+              }
+            }}
+            placeholder="シンボルまたは会社名で検索 (例: AAPL, apple)"
+          />
+          {suggestions.length > 0 && (
+            <div className="panel search-results">
+              {suggestions.map((row) => (
+                <button
+                  key={row.symbol}
+                  type="button"
+                  className="search-result"
+                  onClick={() => choose(row.symbol)}
+                >
+                  <Search size={13} /> <strong>{row.symbol}</strong> {row.name}
+                  {row.exchange && <span className="badge">{row.exchange}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </label>
         <div className="chart-tool-group">
-          <span className="tool-label">期間</span>
+          <span className="tool-label">表示期間</span>
           <div className="segmented">
-            {RANGES.map((r) => (
+            {PERIODS.map((p) => (
               <button
-                key={r.label}
+                key={p.days}
                 type="button"
-                className={rangeDays === r.days ? "active" : ""}
-                onClick={() => setRangeDays(r.days)}
+                className={rangeDays === p.days ? "active" : ""}
+                onClick={() => setRangeDays(p.days)}
               >
-                {r.label}
+                {p.label}
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {error && (
-        <div className="notice error" style={{ marginTop: 12 }}>
-          {error}
+      <section className="chart-symbol-bar">
+        <div>
+          <div className="section-kicker">
+            {symbolParam}
+            {profile?.sector ? ` · ${profile.sector}` : ""}
+          </div>
+          <div className="chart-symbol-name">{profile?.companyName || symbolParam}</div>
         </div>
-      )}
+        <div className="ohlcv-strip">
+          <Ohlcv label="日付" value={last?.date ?? "-"} />
+          <Ohlcv label="始値" value={last ? `$${fmtNum(last.open)}` : "-"} />
+          <Ohlcv label="高値" value={last ? `$${fmtNum(last.high)}` : "-"} />
+          <Ohlcv label="安値" value={last ? `$${fmtNum(last.low)}` : "-"} />
+          <Ohlcv label="終値" value={last ? `$${fmtNum(last.close)}` : "-"} strong />
+          <Ohlcv label="出来高" value={last ? fmtNum(last.volume, 0) : "-"} />
+        </div>
+      </section>
 
-      {/* Chart */}
-      <section className="panel main-chart-panel" style={{ marginTop: 12 }}>
+      <section className="panel main-chart-panel">
         <div ref={containerRef} className="candlestick-canvas" />
         {loading && (
           <div className="chart-loading">
-            <Loader2 size={14} className="spin" /> 読み込み中…
+            <Loader2 size={18} className="spin" /> ローソク足を読み込んでいます
           </div>
         )}
-        {!loading && bars && bars.length === 0 && (
+        {!loading && error && <div className="chart-loading">{error}</div>}
+        {!loading && !error && bars && bars.length === 0 && (
           <div className="chart-loading">
             データがありません（FMP無料プランは米国株のEOD履歴が中心です）。
           </div>
         )}
       </section>
 
-      {/* Summary metrics */}
-      <div className="chart-summary-grid">
-        <Metric label="時価総額" value={fmtCap(quote?.marketCap)} />
-        <Metric label="PER" value={fmtNum(quote?.pe)} />
-        <Metric
-          label="52週高値"
-          value={quote?.yearHigh !== undefined ? `$${fmtNum(quote.yearHigh)}` : "—"}
-        />
-        <Metric
-          label="52週安値"
-          value={quote?.yearLow !== undefined ? `$${fmtNum(quote.yearLow)}` : "—"}
-        />
-        <Metric
-          label="日中レンジ"
-          value={
-            quote?.dayLow !== undefined && quote?.dayHigh !== undefined
-              ? `$${fmtNum(quote.dayLow)}–${fmtNum(quote.dayHigh)}`
-              : "—"
-          }
-        />
-      </div>
+      {stats && (
+        <section className="chart-summary-grid">
+          <Summary
+            label="期間騰落率"
+            value={`${stats.changePct >= 0 ? "+" : ""}${stats.changePct.toFixed(2)}%`}
+            tone={stats.changePct >= 0 ? "positive" : "negative"}
+          />
+          <Summary label="期間高値" value={`$${fmtNum(stats.high)}`} />
+          <Summary label="期間安値" value={`$${fmtNum(stats.low)}`} />
+          <Summary label="平均出来高" value={fmtNum(stats.avgVolume, 0)} />
+          <Summary label="営業日数" value={`${stats.days}日`} />
+        </section>
+      )}
 
       <div className="disclaimer">
-        本結果は過去・公開データに基づく情報提供であり、将来の利益を保証しません。投資判断はご自身でお願いします。
+        本画面は過去・公開データに基づく情報表示を目的としており、特定銘柄の売買を推奨するものではありません。
       </div>
     </main>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Ohlcv({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="ohlcv-item">
+      <span>{label}</span>
+      <strong className={strong ? "primary" : ""}>{value}</strong>
+    </div>
+  );
+}
+
+function Summary({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="summary-card">
       <div className="summary-label">{label}</div>
-      <div className="summary-value" style={{ fontSize: 15 }}>
-        {value}
-      </div>
+      <div className={`summary-value ${tone ?? ""}`}>{value}</div>
     </div>
   );
 }

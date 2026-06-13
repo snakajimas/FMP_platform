@@ -174,6 +174,12 @@ tbody tr:hover { background: var(--bg-tertiary); }
 .disclaimer { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-tertiary); font-size: 9.5px; line-height: 1.65; }
 
 .chart-toolbar { position: relative; display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; padding: 12px; }
+.chart-toolbar .field { flex: 1 1 320px; }
+.search-results { position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; width: min(560px, 100%); overflow: hidden; }
+.search-result { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 11px; border: 0; border-bottom: 1px solid var(--border); background: white; color: var(--text-secondary); font-size: 11px; text-align: left; }
+.search-result:last-child { border-bottom: 0; }
+.search-result:hover { background: var(--purple-soft); color: var(--purple); }
+.search-result .badge { margin-left: auto; }
 .chart-tool-group { display: grid; gap: 5px; }
 .tool-label { color: var(--text-tertiary); font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
 .segmented { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-tertiary); }
@@ -190,9 +196,9 @@ tbody tr:hover { background: var(--bg-tertiary); }
 .ohlcv-item span { color: var(--text-tertiary); font-size: 8.5px; }
 .ohlcv-item strong { color: var(--text-secondary); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }
 .ohlcv-item strong.primary { color: var(--text-primary); font-size: 13px; }
-.main-chart-panel { position: relative; min-width: 0; min-height: 520px; overflow: hidden; }
+.main-chart-panel { position: relative; min-width: 0; min-height: 520px; border-top: 0; border-radius: 0 0 10px 10px; overflow: hidden; }
 .candlestick-canvas { min-width: 0; width: 100%; height: 520px; }
-.chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-tertiary); font-size: 11px; }
+.chart-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-tertiary); font-size: 11px; background: var(--bg-secondary); }
 .chart-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 9px; margin-top: 12px; }
 
 /* AIチャット (kabutoweb には無いので追加) */
