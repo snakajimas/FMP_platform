@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  FlaskConical,
   MessageSquare,
   Search,
   Sparkles,
@@ -75,6 +76,10 @@ export default function App() {
           <NavLink to="/chart" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
             <BarChart3 size={15} />
             <span className="nav-label">チャート</span>
+          </NavLink>
+          <NavLink to="/probe" className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+            <FlaskConical size={15} />
+            <span className="nav-label">データ調査</span>
           </NavLink>
         </div>
 

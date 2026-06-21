@@ -5,6 +5,7 @@ import App from "./App";
 import ChatPage from "./pages/ChatPage";
 import ScreenerPage from "./pages/ScreenerPage";
 import ChartPage from "./pages/ChartPage";
+import ProbePage from "./pages/ProbePage";
 import "./index.css";
 
 const router = createBrowserRouter([
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
       { path: "chat", element: <ChatPage /> },
       { path: "screener", element: <ScreenerPage /> },
       { path: "chart", element: <ChartPage /> },
+      { path: "probe", element: <ProbePage /> },
       { path: "*", element: <Navigate to="/chat" replace /> },
     ],
   },
