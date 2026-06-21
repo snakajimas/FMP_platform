@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Database, FlaskConical, Loader2, Search } from "lucide-react";
 import { api, ProbeResponse, ProbeSource } from "../lib/api";
+import { labelFor } from "../lib/fieldLabels";
 
 // Source order + human labels. Mirrors the FMP endpoints Kabuto ingests.
 const SOURCES: { key: string; label: string; endpoint: string }[] = [
@@ -234,7 +235,8 @@ export default function ProbePage() {
                         className="probe-cell"
                         style={empty ? { opacity: 0.55 } : undefined}
                       >
-                        <span className="probe-key">{k}</span>
+                        <span className="probe-key">{labelFor(k)}</span>
+                        <span className="probe-rawkey">{k}</span>
                         <span className="probe-val">
                           {renderValue(v)}
                           {empty && (
