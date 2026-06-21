@@ -1,6 +1,7 @@
 import { Env, fail } from "./lib/env";
 import { handleChat } from "./routes/chat";
 import { handleScreenerNL } from "./routes/screener";
+import { handleProbe } from "./routes/probe";
 import {
   handleConfig,
   handleScreener,
@@ -51,6 +52,8 @@ function route(pathname: string, request: Request, url: URL, env: Env): Promise<
       return handleQuote(url, env);
     case "/api/search":
       return handleSearch(url, env);
+    case "/api/probe":
+      return handleProbe(url, env);
     default:
       return fail("Not found.", 404);
   }

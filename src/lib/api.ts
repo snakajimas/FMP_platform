@@ -80,7 +80,22 @@ export const api = {
 
   search: (query: string) =>
     call<{ data: SearchHit[] }>(`/api/search?query=${encodeURIComponent(query)}`),
+
+  probe: (symbol: string) =>
+    call<ProbeResponse>(`/api/probe?symbol=${encodeURIComponent(symbol)}`),
 };
+
+export interface ProbeSource {
+  ok: boolean;
+  error?: string;
+  data?: Record<string, unknown> | null;
+}
+
+export interface ProbeResponse {
+  symbol: string;
+  // keys: quote | profile | ratios | keyMetrics | income | history
+  sources: Record<string, ProbeSource>;
+}
 
 export interface ScreenerRow {
   symbol: string;

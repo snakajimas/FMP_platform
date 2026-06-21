@@ -262,3 +262,13 @@ tbody tr:hover { background: var(--bg-tertiary); }
   .chat-suggestions { grid-template-columns: 1fr; }
   .main-chart-panel, .candlestick-canvas { min-height: 420px; height: 420px; }
 }
+
+/* Data probe page: field coverage grid */
+.probe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+.probe-cell { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg-secondary); min-width: 0; }
+.probe-key { color: var(--text-secondary); font-size: 11px; font-weight: 700; letter-spacing: .01em; }
+.probe-rawkey { color: var(--text-tertiary); font-size: 8.5px; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; opacity: .7; }
+.probe-val { color: var(--text-primary); font-size: 11.5px; font-variant-numeric: tabular-nums; word-break: break-word; margin-top: 1px; }
+@media (max-width: 720px) {
+  .probe-grid { grid-template-columns: 1fr; }
+}
